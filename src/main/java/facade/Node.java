@@ -7,6 +7,7 @@ import service.NodeServices;
 
 import java.util.Scanner;
 
+//@author Baroudy
 public class Node {
 
     public Node(){
