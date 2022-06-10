@@ -3,7 +3,11 @@ package service;
 import persistence.MongoHandler;
 import persistence.models.Block;
 import persistence.models.ClinicCredentials;
+import persistence.models.Transaction;
+import utility.Sign;
 
+import java.math.BigInteger;
+import java.security.SignatureException;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
@@ -81,5 +85,18 @@ public class CAServices {
         }
 
         return flag;
+    }
+
+    public static boolean validateTransactionSignature(Transaction t){
+        byte[] msg = t.getPayLoad().getBytes();
+        BigInteger pubKeyRecovered;
+        try {
+            pubKeyRecovered = Sign.signedMessageToKey(msg, t.getScriptSig());
+        } catch (SignatureException e) {
+            e.printStackTrace();
+            return false;
+        }
+
+        return pubKeyRecovered.toString(16).equals(t.getScriptPublicKey());
     }
 }

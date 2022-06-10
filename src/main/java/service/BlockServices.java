@@ -21,17 +21,17 @@ public class BlockServices {
                 "-1", "-1", "-1",
                 "-1", -1, false);
 
-        byte[] message = patientInfo.toString().getBytes();
         String privKey = System.getenv("GENESIS_PRIVATE_KEY");
         String symmetricKey = System.getenv("GENESIS_AES_KEY");
         String initVector = System.getenv("GENESIS_IV");
 
         ECKeyPair keyPair = ECKeyPair.create(Converter.getECKeyFromString(privKey));
-        Sign.SignatureData signatureData = Sign.signMessage(message, keyPair);
 
         String payLoad = Encrypt.doAESEncryption(
                 patientInfo.toString(), symmetricKey, initVector);
 
+        assert payLoad != null;
+        Sign.SignatureData signatureData = Sign.signMessage(payLoad.getBytes(), keyPair);
 
         Transaction transaction = new Transaction(payLoad,
                 Converter.getECKeyAsString(keyPair.getPublicKey()), signatureData);
@@ -64,15 +64,20 @@ public class BlockServices {
             return null;
         }
 
+        if (!CAServices.validateTransactionSignature(t)) {
+            System.out.println("invalid signature! the scriptPubKey doesn't" +
+                    "correspond to the script signature");
+        }
+
         String pubKey = t.getScriptPublicKey();
         ClinicCredentials clinicCredentials = handler.getClinic(pubKey);
 
         String decryptedPayLoad = t.getDecryptedPayLoad(
                 clinicCredentials.getSymmetricKey(), clinicCredentials.getInitVector());
 
-        if(CAServices.isPatientInfo(decryptedPayLoad)){
+        if (CAServices.isPatientInfo(decryptedPayLoad)) {
 
-            if(patientIdExists(handler, pubKey, clinicCredentials, decryptedPayLoad)){
+            if (patientIdExists(handler, pubKey, clinicCredentials, decryptedPayLoad)) {
                 System.out.println("this patient is already registered!" +
                         "you can only add visits for this patient");
                 return null;
@@ -80,13 +85,13 @@ public class BlockServices {
 
         } else if (CAServices.isVisitInfo(decryptedPayLoad)) {
 
-            if(!patientIdExists(handler, pubKey, clinicCredentials, decryptedPayLoad)){
+            if (!patientIdExists(handler, pubKey, clinicCredentials, decryptedPayLoad)) {
                 System.out.println("this patient Id is not registered!" +
                         "please add his patient info before creating a visit");
                 return null;
             }
 
-        }else{
+        } else {
             System.out.println("this is a gibberish transaction please create a" +
                     "meaningful one");
             return null;
@@ -95,11 +100,11 @@ public class BlockServices {
         System.out.println("CA verifications successful!");
         Block minedBlock = getMinedBlock(t, handler);
 
-        if(CAServices.validateMinedBlock(minedBlock, handler)){
+        if (CAServices.validateMinedBlock(minedBlock, handler)) {
             System.out.println("CA validated mined block successfully");
             handler.saveBlock(minedBlock);
             System.out.println(minedBlock);
-        }else{
+        } else {
             System.out.println("CA detected fraud during mined block validation");
             System.out.println("Mined block is rejected!");
         }
@@ -108,14 +113,12 @@ public class BlockServices {
     }
 
     public static void trace(String signPubKey, MongoHandler handler) {
-        ClinicCredentials clinicCredentials = handler.getClinic(signPubKey);
-        if (CAServices.notRegistered(clinicCredentials)) return;
         int idx = 0;
         Block block = handler.getBlock(idx);
 
         while (block != null) {
             Transaction t = block.getTransactions().getFirstTransaction();
-            if(t.getScriptPublicKey().equals(signPubKey)){
+            if (t.getScriptPublicKey().equals(signPubKey)) {
                 System.out.println(block);
             }
 
@@ -124,7 +127,8 @@ public class BlockServices {
     }
 
     public static void traceAndDecrypt(String signPubKey, String symmetricKey,
-                                       String initVector, MongoHandler handler) {
+                                       String initVector, MongoHandler handler,
+                                       String patientID) {
 
         ClinicCredentials clinicCredentials = handler.getClinic(signPubKey);
         if (CAServices.notRegistered(clinicCredentials) ||
@@ -137,7 +141,14 @@ public class BlockServices {
         while (block != null) {
             Transaction t = block.getTransactions().getFirstTransaction();
 
-            if(t.getScriptPublicKey().equals(signPubKey)){
+            if(patientID != null &&
+                    !Objects.equals(CAServices.extractPatientId(
+                            t.getDecryptedPayLoad(symmetricKey, initVector))
+                            , patientID)){
+                continue;
+            }
+
+            if (t.getScriptPublicKey().equals(signPubKey)) {
                 System.out.println(block.toDecryptedString(symmetricKey, initVector));
             }
             block = handler.getBlock(++idx);
@@ -188,7 +199,7 @@ public class BlockServices {
 
     private static boolean patientIdExists(
             MongoHandler handler, String pubKey,
-            ClinicCredentials clinicCredentials, String decryptedPayLoad){
+            ClinicCredentials clinicCredentials, String decryptedPayLoad) {
 
         int idx = 0;
         boolean exists = false;

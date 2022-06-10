@@ -30,7 +30,8 @@ public class Node {
                 case 4 -> transaction = BlockServices.mineBlock(transaction, handler);
                 case 5 -> NodeServices.trace(sc, handler);
                 case 6 -> NodeServices.traceAndDecrypt(sc, handler);
-                case 7 -> running = NodeServices.gracefullyShutDown(sc,handler);
+                case 7 -> NodeServices.tracePatientAndDecrypt(sc, handler);
+                case 8 -> running = NodeServices.gracefullyShutDown(sc,handler);
             }
         }
     }

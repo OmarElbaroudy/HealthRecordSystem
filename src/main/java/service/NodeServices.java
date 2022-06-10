@@ -23,7 +23,8 @@ public class NodeServices {
                 4 -> Mine Block
                 5 -> Trace transactions
                 6 -> Trace and decrypt transactions
-                7 -> Exit""");
+                7 -> Trace patient ID and decrypt transactions
+                8 -> Exit""");
 
         return Integer.parseInt(sc.nextLine());
     }
@@ -94,7 +95,21 @@ public class NodeServices {
         String symmetricKey = sc.nextLine();
         System.out.println("please enter the initial vector");
         String initVector = sc.nextLine();
-        BlockServices.traceAndDecrypt(signPubKey, symmetricKey, initVector, handler);
+        BlockServices.traceAndDecrypt(signPubKey, symmetricKey,
+                initVector, handler, null);
+    }
+
+    public static void tracePatientAndDecrypt(Scanner sc, MongoHandler handler) {
+        System.out.println("please enter the signing public key to be traced");
+        String signPubKey = sc.nextLine();
+        System.out.println("please enter the AES key");
+        String symmetricKey = sc.nextLine();
+        System.out.println("please enter the initial vector");
+        String initVector = sc.nextLine();
+        System.out.println("please enter the patient ID");
+        String patientID = sc.nextLine();
+        BlockServices.traceAndDecrypt(signPubKey, symmetricKey,
+                initVector, handler, patientID);
     }
 
     public static boolean gracefullyShutDown(Scanner sc, MongoHandler handler) {
