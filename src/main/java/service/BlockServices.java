@@ -4,7 +4,10 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.web3j.crypto.ECKeyPair;
 import persistence.MongoHandler;
 import persistence.models.*;
-import utility.*;
+import utility.Converter;
+import utility.Encrypt;
+import utility.MerkelTree;
+import utility.Sign;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -141,16 +144,19 @@ public class BlockServices {
         while (block != null) {
             Transaction t = block.getTransactions().getFirstTransaction();
 
-            if(patientID != null &&
-                    !Objects.equals(CAServices.extractPatientId(
-                            t.getDecryptedPayLoad(symmetricKey, initVector))
-                            , patientID)){
-                continue;
+            if (t.getScriptPublicKey().equals(signPubKey)) {
+                String extractedPatientId = CAServices.extractPatientId(
+                        t.getDecryptedPayLoad(symmetricKey, initVector));
+
+                assert extractedPatientId != null;
+                extractedPatientId = extractedPatientId.
+                        substring(1, extractedPatientId.length() - 1);
+
+                if (patientID == null || patientID.equals(extractedPatientId)) {
+                    System.out.println(block.toDecryptedString(symmetricKey, initVector));
+                }
             }
 
-            if (t.getScriptPublicKey().equals(signPubKey)) {
-                System.out.println(block.toDecryptedString(symmetricKey, initVector));
-            }
             block = handler.getBlock(++idx);
         }
     }
